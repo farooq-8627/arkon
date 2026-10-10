@@ -114,6 +114,20 @@ LLM_CATALOG: dict[str, LLMModelSpec] = {
         ),
     ),
     # --- OpenAI ---
+    # --- Cloudflare Workers AI (OpenAI-compatible) ---
+    "openai/deepseek-v4-flash-cf": LLMModelSpec(
+        id="openai/deepseek-v4-flash-cf",
+        provider="openai",
+        model_id="@cf/deepseek-ai/deepseek-v4-flash-0731",
+        context_window_tokens=131_072,
+        max_output_tokens=4_096,
+        supports_tools=True,
+        supports_vision=False,
+        label="Cloudflare DeepSeek V4 Flash (128k)",
+        cost_per_1m_input_tokens=None,
+        cost_per_1m_output_tokens=None,
+        notes="Cloudflare Workers AI via OpenAI-compatible base_url (free on credits).",
+    ),
     "openai/gpt-5.4": LLMModelSpec(
         id="openai/gpt-5.4",
         provider="openai",

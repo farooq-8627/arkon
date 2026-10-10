@@ -70,6 +70,17 @@ EMBEDDING_CATALOG: dict[str, EmbeddingModelSpec] = {
         cost_per_1m_tokens=0.02,
         notes="Best price/performance on OpenAI side.",
     ),
+    # --- Cloudflare Workers AI (OpenAI-compatible) ---
+    "openai/bge-large-en-v1.5-cf": EmbeddingModelSpec(
+        id="openai/bge-large-en-v1.5-cf",
+        provider="openai",
+        model_id="@cf/baai/bge-large-en-v1.5",
+        dimension=1024,
+        max_input_tokens=512,
+        label="Cloudflare bge-large-en-v1.5 (1024d)",
+        cost_per_1m_tokens=None,
+        notes="Cloudflare Workers AI via OpenAI-compatible base_url (free on credits).",
+    ),
     "openai/text-embedding-3-large": EmbeddingModelSpec(
         id="openai/text-embedding-3-large",
         provider="openai",

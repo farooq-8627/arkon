@@ -60,6 +60,8 @@ class ResolvedIdentity:
     # `department_id`; treat as an unordered set.
     department_ids: list[uuid.UUID] = field(default_factory=list)
     department_names: list[str] = field(default_factory=list)
+    # Workspace/project IDs the employee belongs to (empty = global-scope only).
+    project_ids: list[uuid.UUID] = field(default_factory=list)
     allowed_knowledge_types: Optional[list[str]] = None  # None = all
     allowed_source_ids: Optional[list[str]] = None       # None = all
     is_admin: bool = False

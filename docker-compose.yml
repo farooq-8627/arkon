@@ -54,20 +54,23 @@ services:
       retries: 10
 
   minio:
-    image: minio/minio:latest
+    image: chrislusf/seaweedfs:3.85
     container_name: arkon_minio
     restart: always
-    command: server /data --console-address ":9001"
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        printf %s "$$SEAWEEDFS_S3_CONFIG" > /data/s3.json
+        exec /usr/bin/weed server -s3 -s3.port=9000 -s3.config=/data/s3.json -filer -filer.port=8888 -master.port=9333 -volume.port=8080 -dir=/data -ip=127.0.0.1 -ip.bind=0.0.0.0
     environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin123}
+      SEAWEEDFS_S3_CONFIG: >-
+        {"identities":[{"name":"arkon","credentials":[{"accessKey":"${MINIO_ACCESS_KEY:-minioadmin}","secretKey":"${MINIO_SECRET_KEY:-minioadmin123}"}],"actions":["Admin","Read","List","Tagging","Write"]}]}
     volumes:
       - minio_data:/data
     ports:
       - "9002:9000"
-      - "9003:9001"
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8888/"]
       interval: 10s
       timeout: 5s
       retries: 10

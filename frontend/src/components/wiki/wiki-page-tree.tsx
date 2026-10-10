@@ -38,6 +38,34 @@ function pageKey(p: WikiPageSummary): string {
   return `${p.slug}-${p.scope_type || "global"}-${p.scope_id ?? "none"}`;
 }
 
+// Nested folder tree built from hierarchical slugs (e.g. "components/ui/modal").
+type SlugNode = {
+  name: string;
+  slug: string;
+  page: WikiPageSummary | null;
+  children: Map<string, SlugNode>;
+};
+
+function buildSlugTree(pages: WikiPageSummary[]): SlugNode {
+  const root: SlugNode = { name: "", slug: "", page: null, children: new Map() };
+  for (const p of pages) {
+    const segs = p.slug.split("/");
+    let node = root;
+    let path = "";
+    for (const seg of segs) {
+      path = path ? `${path}/${seg}` : seg;
+      let child = node.children.get(seg);
+      if (!child) {
+        child = { name: seg, slug: path, page: null, children: new Map() };
+        node.children.set(seg, child);
+      }
+      node = child;
+    }
+    node.page = p;
+  }
+  return root;
+}
+
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = React.useState(value);
   React.useEffect(() => {
@@ -92,6 +120,8 @@ export function WikiPageTree({
   const [sources, setSources] = React.useState<{ id: string; title: string; file_name?: string; status: string; source_type?: string }[]>([]);
   const [sourcesLoading, setSourcesLoading] = React.useState(true);
   const [sourcesCollapsed, setSourcesCollapsed] = React.useState(false);
+  // Folders collapsed in the nested slug tree (empty = all expanded).
+  const [collapsedFolders, setCollapsedFolders] = React.useState<Set<string>>(new Set());
 
   const debouncedSearch = useDebounce(search, 150);
 
@@ -361,6 +391,61 @@ export function WikiPageTree({
     );
   };
 
+  // Recursively render the slug folder tree. Nodes that are also pages are
+  // clickable; pure folder nodes (intermediate paths) render as folder labels.
+  const renderTreeNodes = (node: SlugNode, depth: number): React.ReactNode => {
+    const kids = Array.from(node.children.values()).sort((a, b) => {
+      const ah = a.children.size > 0 ? 0 : 1;
+      const bh = b.children.size > 0 ? 0 : 1;
+      if (ah !== bh) return ah - bh;
+      return a.name.localeCompare(b.name);
+    });
+    return kids.map((child) => {
+      const hasChildren = child.children.size > 0;
+      const isCollapsed = collapsedFolders.has(child.slug);
+      const toggle = () =>
+        setCollapsedFolders((prev) => {
+          const next = new Set(prev);
+          if (next.has(child.slug)) next.delete(child.slug);
+          else next.add(child.slug);
+          return next;
+        });
+
+      return (
+        <div key={child.slug}>
+          <div className="flex items-center w-full">
+            {hasChildren ? (
+              <button
+                onClick={toggle}
+                className="shrink-0 p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                title={isCollapsed ? "Expand" : "Collapse"}
+              >
+                <span className="material-symbols-outlined text-xs">
+                  {isCollapsed ? "chevron_right" : "expand_more"}
+                </span>
+              </button>
+            ) : (
+              <span className="w-4 shrink-0" />
+            )}
+            {child.page ? (
+              <div className="flex-1 min-w-0">{renderPageItem(child.page)}</div>
+            ) : (
+              <span className="flex-1 flex items-center gap-2 px-2.5 py-1.5 text-xs text-muted-foreground truncate">
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>folder</span>
+                <span className="truncate">{child.name}</span>
+              </span>
+            )}
+          </div>
+          {hasChildren && !isCollapsed && (
+            <div className="ml-3 pl-1 border-l border-border/30">
+              {renderTreeNodes(child, depth + 1)}
+            </div>
+          )}
+        </div>
+      );
+    });
+  };
+
   if (collapsed) {
     return (
       <div className="w-10 border-r border-border bg-card/30 flex flex-col items-center pt-4 gap-3 shrink-0">
@@ -523,7 +608,7 @@ export function WikiPageTree({
                       {bucket.pages.length === 0 ? (
                         <p className="text-[10px] text-muted-foreground px-3 py-1 italic">Empty</p>
                       ) : (
-                        bucket.pages.map((page) => renderPageItem(page))
+                        renderTreeNodes(buildSlugTree(bucket.pages), 0)
                       )}
                     </div>
                   )}
@@ -535,7 +620,7 @@ export function WikiPageTree({
           <p className="text-xs text-muted-foreground px-4 py-3">No pages found.</p>
         ) : (
           <div className="space-y-0.5">
-            {grouped.map((page) => renderPageItem(page))}
+            {renderTreeNodes(buildSlugTree(grouped), 0)}
           </div>
         )}
       </div>
